@@ -70,6 +70,7 @@ impl<'a> PoseidonCircuit<'a> {
   pub fn import_parameter(&mut self) {
     if Path::new(PARAMETER_FILE_PATH).exists() == false || Path::new(PROVER_KEY_FILE_PATH).exists() == false || Path::new(VERIFIER_DATA_FILE_PATH).exists() == false {
       self.setup_parameter();
+      self.export_parameter();
       return;
     }
 

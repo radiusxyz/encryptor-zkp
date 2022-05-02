@@ -1,5 +1,5 @@
 [package]
-name = "encryptor-zkp"
+name = "encryptor_zkp"
 version = "0.1.0"
 edition = "2021"
 description ="Implementation of Poseidon Encryption over the Bls12-381 Scalar field."

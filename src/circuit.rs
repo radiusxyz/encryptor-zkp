@@ -1,4 +1,6 @@
 use crate::gadget;
+use crate::mimc::{mimc, plonk::mimc as mimc_gadget};
+use crate::Fr as MimcFr;
 use dusk_bls12_381::BlsScalar;
 use dusk_plonk::error::Error as PlonkError;
 use dusk_plonk::prelude::*;
@@ -14,6 +16,7 @@ const VERIFIER_DATA_FILE_PATH: &str = "./data/verifier_data.data";
 
 pub struct PoseidonCircuit<'a> {
   pub symmetric_key: JubJubAffine,
+  pub key_commitment: BlsScalar,
   pub nonce: BlsScalar,
   pub plain_text: &'a [BlsScalar],
   pub cipher_text: &'a [BlsScalar],
@@ -26,6 +29,7 @@ pub struct PoseidonCircuit<'a> {
 impl<'a> PoseidonCircuit<'a> {
   pub fn new() -> Self {
     let symmetric_key = JubJubAffine::default();
+    let key_commitment = BlsScalar::default();
     let nonce = BlsScalar::default();
 
     const PLAIN_TEXT: [BlsScalar; PoseidonEncryption::capacity()] = [BlsScalar::zero(); PoseidonEncryption::capacity()];
@@ -33,6 +37,7 @@ impl<'a> PoseidonCircuit<'a> {
 
     Self {
       symmetric_key,
+      key_commitment,
       nonce,
       plain_text: &PLAIN_TEXT,
       cipher_text: &CIPHER_TEXT,
@@ -84,8 +89,9 @@ impl<'a> PoseidonCircuit<'a> {
     self.verifier_data = VerifierData::from_slice(&data).ok();
   }
 
-  pub fn set_input(&mut self, symmetric_key: JubJubAffine, nonce: BlsScalar, plain_text: &'a [BlsScalar], cipher_text: &'a [BlsScalar]) {
+  pub fn set_input(&mut self, symmetric_key: JubJubAffine, key_commitment: BlsScalar, nonce: BlsScalar, plain_text: &'a [BlsScalar], cipher_text: &'a [BlsScalar]) {
     self.symmetric_key = symmetric_key;
+    self.key_commitment = key_commitment;
     self.nonce = nonce;
     self.plain_text = plain_text;
     self.cipher_text = cipher_text;
@@ -99,6 +105,12 @@ impl<'a> Circuit for PoseidonCircuit<'a> {
     let zero = TurboComposer::constant_zero();
     let nonce = composer.append_witness(self.nonce);
     let symmetric_key = composer.append_point(self.symmetric_key);
+    let key_x = symmetric_key.x();
+    let key_y = symmetric_key.y();
+
+    let commitment = composer.append_public_witness(self.key_commitment);
+    let commitment_gadget: Witness = mimc_gadget(composer, &[*key_x, *key_y]);
+    composer.assert_equal(commitment, commitment_gadget);
 
     let mut message_circuit = [zero; PoseidonEncryption::capacity()];
 
@@ -142,6 +154,9 @@ mod tests {
     // Generate a shared secret
     let symmetric_key = dhke(&bob_secret, &alice_public);
 
+    let mimc_hash = mimc(&[<MimcFr as From<BlsScalar>>::from(symmetric_key.get_x()), <MimcFr as From<BlsScalar>>::from(symmetric_key.get_y())]);
+    let key_commitment = <MimcFr as Into<BlsScalar>>::into(mimc_hash);
+
     // Generate a secret message
     let message = "sample message".to_string();
 
@@ -160,10 +175,11 @@ mod tests {
 
     let label = b"poseidon-cipher";
 
-    poseidon_circuit.set_input(symmetric_key, nonce, &message_scalar[..], &cipher_scalar[..]);
+    poseidon_circuit.set_input(symmetric_key, key_commitment, nonce, &message_scalar[..], &cipher_scalar[..]);
     let proof = poseidon_circuit.prove(&public_parameter, &prover_key, label)?;
 
     let mut public_input = vec![];
+    public_input.push(PublicInputValue::from(key_commitment));
     cipher_scalar.iter().for_each(|c| {
       public_input.push(PublicInputValue::from(*c));
     });
@@ -186,6 +202,9 @@ mod tests {
     // Generate a shared secret
     let symmetric_key = dhke(&bob_secret, &alice_public);
 
+    let mimc_hash = mimc(&[<MimcFr as From<BlsScalar>>::from(symmetric_key.get_x()), <MimcFr as From<BlsScalar>>::from(symmetric_key.get_y())]);
+    let key_commitment = <MimcFr as Into<BlsScalar>>::into(mimc_hash);
+
     // Generate a secret message
     let message = "sample message".to_string();
 
@@ -204,12 +223,13 @@ mod tests {
 
     let label = b"poseidon-cipher";
 
-    poseidon_circuit.set_input(symmetric_key, nonce, &message_scalar[..], &cipher_scalar[..]);
+    poseidon_circuit.set_input(symmetric_key, key_commitment, nonce, &message_scalar[..], &cipher_scalar[..]);
 
     poseidon_circuit.prove(&public_parameter, &prover_key, label)?;
     let proof = poseidon_circuit.prove(&public_parameter, &prover_key, label)?;
 
     let mut public_input = vec![];
+    public_input.push(PublicInputValue::from(key_commitment));
     cipher_scalar.iter().for_each(|c| {
       public_input.push(PublicInputValue::from(*c));
     });

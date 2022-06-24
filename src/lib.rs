@@ -31,3 +31,18 @@ impl From<BlsScalar> for Fr {
 
 mod config;
 pub mod mimc;
+
+use wasm_bindgen::prelude::*;
+use crate::circuit::tests::gadget_test_with_setup_parameter;
+
+#[wasm_bindgen]
+extern {
+	pub fn alert(s: &str);
+}
+
+#[wasm_bindgen]
+
+pub fn greet(name: &str) {
+    gadget_test_with_setup_parameter();
+    alert(&format!("Hello, a{}!", name));
+}

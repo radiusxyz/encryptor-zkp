@@ -8,7 +8,11 @@ license = "Apache-2.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[lib]
+crate-type = ["cdylib"]
+
 [dependencies]
+wasm-bindgen = "0.2.79"
 hex = "0.4.3"
 sha3 = {version = "0.10.0", default-features = false}
 dusk-bls12_381 = {version = "0.9", default-features = false}
@@ -27,6 +31,8 @@ rand = "0.8.5"
 lazy_static = "1.4.0"
 num-bigint = "0.4"
 num-integer = "0.1"
+
+getrandom = { version = "0.2", features = ["js"] }
 
 [dev-dependencies]
 criterion = "0.3"

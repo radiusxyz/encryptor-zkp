@@ -138,12 +138,12 @@ impl<'a> Circuit for PoseidonCircuit<'a> {
 }
 
 #[allow(unused_imports)]
-mod tests {
+pub mod tests {
   use super::*;
   use dusk_jubjub::{dhke, GENERATOR_EXTENDED};
 
-  #[test]
-  fn gadget_test_with_setup_parameter() -> Result<(), PlonkError> {
+  // #[test]
+  pub fn gadget_test_with_setup_parameter() -> Result<(), PlonkError> {
     // Generate a secret and a public key for Bob
     let bob_secret = JubJubScalar::random(&mut OsRng);
 
